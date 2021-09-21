@@ -4,6 +4,13 @@
 
 ## 使用
 
+```
+
+docker build ./docker/build -t tomhjx/netcat
+
+```
+
+
 * 截取某个容器的请求
 
 ```
