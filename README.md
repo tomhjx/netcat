@@ -11,9 +11,13 @@ docker build ./docker/build -t tomhjx/netcat
 ```
 
 
-* 截取某个容器的请求
+* 截取某个容器发起的请求
 
 ```
 docker run -it --rm --net container:目标容器名称 tomhjx/netcat what-mysql
 
 ```
+
+## 依赖
+
+* [TCPFLOW](https://github.com/simsong/tcpflow)
