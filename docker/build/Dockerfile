@@ -6,4 +6,4 @@ COPY entrypoint.sh /
 RUN chmod +x -R /mybin; \
     chmod +x /entrypoint.sh 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["http"]
+CMD ["--help"]
