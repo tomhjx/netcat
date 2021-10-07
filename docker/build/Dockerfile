@@ -1,5 +1,5 @@
 FROM alpine:3.14.2
-RUN apk add --update alpine-sdk autoconf automake libressl-dev libpcap-dev libnet-dev json-c-dev fts-dev \
+RUN apk add --update tzdata alpine-sdk autoconf automake libressl-dev libpcap-dev libnet-dev json-c-dev fts-dev \
     wget \
     tcpflow \
     tshark \
@@ -14,7 +14,10 @@ RUN apk add --update alpine-sdk autoconf automake libressl-dev libpcap-dev libne
 
 COPY mybin /mybin
 COPY entrypoint.sh /
-RUN chmod +x -R /mybin; \
+
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    echo "Asia/Shanghai" > /etc/timezone \
+    chmod +x -R /mybin; \
     chmod +x /entrypoint.sh 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]

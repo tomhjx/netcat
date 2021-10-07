@@ -2,6 +2,8 @@
 
 echo "http"
 
-tcpflow -c -i any -e http
+# tcpflow -c -i any -e http
+
+tshark -i any  -d tcp.port==80,http
 
 # tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)
