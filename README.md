@@ -11,12 +11,26 @@ docker build ./docker/build -t tomhjx/netcat
 ```
 
 
+* debug
+
+```
+
+docker run -it --rm -v /Users/tom/Repos/github.com/tomhjx/netcat/docker/build/mybin:/mybin  -v /Users/tom/Repos/github.com/tomhjx/lab/php-framework-thinkphp5/src:/res  --net container:php-framework-thinkphp5_thinkphp5-fpm_1 tomhjx/netcat /bin/sh
+
+```
+
+
+
 * 截取某个容器发起的请求
 
 ```
 docker run -it --rm --net container:目标容器名称 tomhjx/netcat what-mysql
 
 ```
+
+
+
+
 
 ## 依赖
 
