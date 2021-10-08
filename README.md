@@ -45,3 +45,5 @@ docker run -it --rm --net container:目标容器名称 tomhjx/netcat what-mysql
 
 * MySQL Query
     * https://www.shuzhiduo.com/A/nAJvvNXoJr/
+    * https://www.wireshark.org/docs/dfref/m/mysql.html
+    * https://plantegg.github.io/2019/06/21/%E5%B0%B1%E6%98%AF%E8%A6%81%E4%BD%A0%E6%87%82%E6%8A%93%E5%8C%85--WireShark%E4%B9%8B%E5%91%BD%E4%BB%A4%E8%A1%8C%E7%89%88tshark/
