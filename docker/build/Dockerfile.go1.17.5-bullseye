@@ -1,0 +1,5 @@
+FROM golang:1.17.5-bullseye
+RUN apt-get update && \ 
+    apt-get upgrade && \
+    apt-get install -y libpcap-dev && \
+    echo "Asia/Shanghai" > /etc/timezone
