@@ -20,6 +20,14 @@ docker run -it --rm -v /Users/tom/Repos/github.com/tomhjx/netcat/docker/build/my
 ```
 
 
+* pcap
+
+```
+docker run -it --rm --cap-add=ALL -v /Users/tom/Work/project/github.com/tomhjx/netcat/resources:/data/resources  --net container:lab_app_console tomhjx/netcat:0.1.0-alpine-3.14.2 /bin/sh -c "tcpdump -i eth0 -s 0 -w /data/resources/mysql.pcap"
+
+```
+
+
 
 * 截取某个容器发起的请求
 
@@ -30,6 +38,26 @@ docker run -it --rm --net container:目标容器名称 tomhjx/netcat what-mysql
 
 
 
+## 嗅探流程设计
+
+* 处理器
+    * 定义`输出器`信道，开启`输出器`协程
+        * `输出器`
+            * 对接输出设备 
+        * 从`输出器`信道读取内容，作为`输出器`入参
+        * 由`输出器`实现执行细节
+    * 定义`解析器`信道，开启`解析器`协程
+        * `解析器`
+            * 解析内容，转换为结构化对象
+        * 从`解析器`信道读取内容，作为`解析器`入参
+        * 由`解析器`实现执行细节
+        * 将`解析器`执行结果写入`输出器`信道
+    * 启动`输入器`
+        * `输入器`
+            * 读取输入源（文件、流量）
+            * 解包 
+            * 包体结构化
+        * 将`输入器`执行结果写入`解析器`信道 
 
 
 ## 依赖
