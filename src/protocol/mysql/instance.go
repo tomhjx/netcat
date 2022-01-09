@@ -8,32 +8,29 @@ import (
 	"strings"
 )
 
-type Parser struct {
-	Port     int
-	stmtMap  map[uint32]*Stmt
-	stmtTMap map[int]*Stmt
+type Instance struct {
+	Port          int
+	TransportType string
+	stmtMap       map[uint32]*Stmt
+	stmtTMap      map[int]*Stmt
 }
 
-func NewInstance() *Parser {
-	return &Parser{
-		Port:     3306,
-		stmtMap:  make(map[uint32]*Stmt),
-		stmtTMap: make(map[int]*Stmt),
+func NewInstance() *Instance {
+	return &Instance{
+		Port:          3306,
+		TransportType: "tcp",
+		stmtMap:       make(map[uint32]*Stmt),
+		stmtTMap:      make(map[int]*Stmt),
 	}
 }
 
-func (per *Parser) BPFFilter() string {
-	return "tcp and port " + strconv.Itoa(per.Port)
-}
-
-func (per *Parser) Resolve(seq int, payload []byte) (string, string) {
-	log.Println("resolve mysql packet.")
+func (me *Instance) Resolve(seq int, payload []byte) (string, string) {
 
 	if len(payload) == 0 {
 		return "NONE", ""
 	}
 
-	if per.continuePrepareStmt(seq, payload) {
+	if me.continuePrepareStmt(seq, payload) {
 		return "", ""
 	}
 
@@ -43,13 +40,13 @@ func (per *Parser) Resolve(seq int, payload []byte) (string, string) {
 		errorCode := int(binary.LittleEndian.Uint16(payload[1:3]))
 		errorMsg, _ := ReadStringFromByte(payload[4:])
 
-		return "MYSQL_RESP_ERR", fmt.Sprintf("%s Err code:%s,Err msg:%s", ErrorPacket, strconv.Itoa(errorCode), strings.TrimSpace(errorMsg))
+		return "MYSQL_RESP_ERR", fmt.Sprintf("Err code:%s,Err msg:%s", strconv.Itoa(errorCode), strings.TrimSpace(errorMsg))
 
 	case 0x00:
 		var pos = 1
 		l, _, _ := LengthEncodedInt(payload[pos:])
 		affectedRows := int(l)
-		return "MYSQL_RESP_EFFECT", fmt.Sprintf("%s Effect Row:%s", OkPacket, strconv.Itoa(affectedRows))
+		return "MYSQL_RESP_EFFECT", fmt.Sprintf("Effect Row:%s", strconv.Itoa(affectedRows))
 
 	case COM_INIT_DB:
 
@@ -66,15 +63,15 @@ func (per *Parser) Resolve(seq int, payload []byte) (string, string) {
 		stmt := &Stmt{
 			Query: string(payload[1:]),
 		}
-		per.stmtTMap[seq+1] = stmt
+		me.stmtTMap[seq+1] = stmt
 
-		return "MYSQL_REQ_PREPARE_QUERY", stmt.Query
+		// return "MYSQL_REQ_PREPARE_QUERY", stmt.Query
 
 	case COM_STMT_SEND_LONG_DATA:
 
 		stmtID := binary.LittleEndian.Uint32(payload[1:5])
 		paramId := binary.LittleEndian.Uint16(payload[5:7])
-		stmt, _ := per.stmtMap[stmtID]
+		stmt, _ := me.stmtMap[stmtID]
 
 		if stmt.Args[paramId] == nil {
 			stmt.Args[paramId] = payload[7:]
@@ -88,59 +85,42 @@ func (per *Parser) Resolve(seq int, payload []byte) (string, string) {
 	case COM_STMT_RESET:
 
 		stmtID := binary.LittleEndian.Uint32(payload[1:5])
-		stmt, _ := per.stmtMap[stmtID]
+		stmt, _ := me.stmtMap[stmtID]
 		stmt.Args = make([]interface{}, stmt.ParamCount)
 		return "", ""
 	case COM_STMT_EXECUTE:
-		return per.resolveExecuteStmt(payload)
+		return me.resolveExecuteStmt(payload)
 	default:
 		return "", ""
 	}
+	return "", ""
 	// fmt.Println(GetNowStr(true) + msg + "\n")
 }
 
-func (per *Parser) continuePrepareStmt(seq int, payload []byte) bool {
-	stmt, ok := per.stmtTMap[seq]
+func (me *Instance) continuePrepareStmt(seq int, payload []byte) bool {
+	stmt, ok := me.stmtTMap[seq]
 	if !ok {
 		return false
 	}
-	delete(per.stmtTMap, seq)
+	delete(me.stmtTMap, seq)
 	stmtID := binary.LittleEndian.Uint32(payload[1:5])
 	stmt.ID = stmtID
 	//record stm sql
-	per.stmtMap[stmtID] = stmt
+	me.stmtMap[stmtID] = stmt
 	stmt.FieldCount = binary.LittleEndian.Uint16(payload[5:7])
 	stmt.ParamCount = binary.LittleEndian.Uint16(payload[7:9])
 	stmt.Args = make([]interface{}, stmt.ParamCount)
 	return true
 }
 
-func (per *Parser) resolvePrepareStmt(cPayload []byte, sPayload []byte) {
-	//fetch stm id
-	stmtID := binary.LittleEndian.Uint32(sPayload[1:5])
-	stmt := &Stmt{
-		ID:    stmtID,
-		Query: string(cPayload[1:]),
-	}
-
-	//record stm sql
-	per.stmtMap[stmtID] = stmt
-	stmt.FieldCount = binary.LittleEndian.Uint16(sPayload[5:7])
-	stmt.ParamCount = binary.LittleEndian.Uint16(sPayload[7:9])
-	stmt.Args = make([]interface{}, stmt.ParamCount)
-
-	msg := PreparePacket + stmt.Query
-	fmt.Println(GetNowStr(true) + msg)
-}
-
-func (per *Parser) resolveExecuteStmt(payload []byte) (string, string) {
+func (me *Instance) resolveExecuteStmt(payload []byte) (string, string) {
 
 	var pos = 1
 	stmtID := binary.LittleEndian.Uint32(payload[pos : pos+4])
 	pos += 4
 	var stmt *Stmt
 	var ok bool
-	if stmt, ok = per.stmtMap[stmtID]; !ok {
+	if stmt, ok = me.stmtMap[stmtID]; !ok {
 		log.Println("ERR : Not found stm id", stmtID)
 		return "", ""
 	}

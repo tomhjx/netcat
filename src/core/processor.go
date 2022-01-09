@@ -7,6 +7,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
 )
 
 type Processor struct{}
@@ -82,19 +83,22 @@ func handleMysql() {
 }
 
 func (proc *Processor) Run() {
-	pcapfile := "/work/resources/mysql2.pcap"
+	pcapfile := "/work/resources/mysql.pcap"
+	// pcapfile := "/work/resources/mysql2.pcap"
 	concurrency := 3
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
 
-	sources := make(chan *Source, 100)
+	sources := make(chan gopacket.Packet, 100)
 	resolveds := make(chan *Resolved, 10)
+	protocol := mysqlProtocol.NewInstance()
+	parser := NewParser(protocol)
+	ier := NewInputer(protocol)
 
 	// input
 	go func() {
 		defer wg.Done()
-		ier := NewInputer()
-		ier.RegisterReadTrigger(func(s *Source) {
+		ier.RegisterReadTrigger(func(s gopacket.Packet) {
 			// log.Println("send source......")
 			sources <- s
 			// log.Println("sent source.")
@@ -114,7 +118,6 @@ func (proc *Processor) Run() {
 			case source := <-sources:
 				// time.Sleep(1 * time.Second)
 				// log.Println("parse: ", len(source.payload))
-				parser := NewParser()
 				resolveds <- parser.Resolve(source)
 			}
 		}

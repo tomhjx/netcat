@@ -2,43 +2,47 @@ package core
 
 import (
 	"log"
+	"strconv"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
 )
 
-type Inputer struct{}
+type Inputer struct {
+	protocol *mysqlProtocol.Instance
+}
 
 var (
-	readTriggers     = []func(*Source){}
+	readTriggers     = []func(gopacket.Packet){}
 	readDoneTriggers = []func(){}
 )
 
-func NewInputer() *Inputer {
-	return &Inputer{}
+func NewInputer(protocol *mysqlProtocol.Instance) *Inputer {
+	return &Inputer{protocol: protocol}
 }
-func (ier *Inputer) RegisterReadTrigger(trigger func(*Source)) {
+func (me *Inputer) RegisterReadTrigger(trigger func(gopacket.Packet)) {
 	readTriggers = append(readTriggers, trigger)
 }
 
-func (ier *Inputer) RegisterReadDoneTrigger(trigger func()) {
+func (me *Inputer) RegisterReadDoneTrigger(trigger func()) {
 	readDoneTriggers = append(readDoneTriggers, trigger)
 }
 
-func (ier *Inputer) callReadTrigger(src *Source) {
+func (me *Inputer) callReadTrigger(s gopacket.Packet) {
 	for _, trigger := range readTriggers {
-		trigger(src)
+		trigger(s)
 	}
 }
 
-func (ier *Inputer) callReadDoneTrigger() {
+func (me *Inputer) callReadDoneTrigger() {
 	for _, trigger := range readDoneTriggers {
 		trigger()
 	}
 }
 
-func (ier *Inputer) ReadOffline(pcapfile string) {
+func (me *Inputer) ReadOffline(pcapfile string) {
 
 	var (
 		handle *pcap.Handle
@@ -55,7 +59,7 @@ func (ier *Inputer) ReadOffline(pcapfile string) {
 		log.Fatal(err)
 	}
 	defer handle.Close()
-	handle.SetBPFFilter("tcp and port 3306")
+	handle.SetBPFFilter(me.protocol.TransportType + " and port " + strconv.Itoa(me.protocol.Port))
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	for packet := range packetSource.Packets() {
@@ -73,10 +77,8 @@ func (ier *Inputer) ReadOffline(pcapfile string) {
 		if applicationLayer == nil {
 			continue
 		}
-		var src = Source{}
-		src.transport = packet.NetworkLayer().NetworkFlow()
-		src.payload = applicationLayer.Payload()
-		ier.callReadTrigger(&src)
+		me.callReadTrigger(packet)
 	}
-	ier.callReadDoneTrigger()
+	me.callReadDoneTrigger()
+
 }

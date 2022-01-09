@@ -4,54 +4,70 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"log"
-	"strconv"
 
-	mysqlAide "github.com/tomhjx/netcat/parser/mysql"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
 )
 
 type Parser struct {
-	aide *mysqlAide.Parser
+	protocol *mysqlProtocol.Instance
 }
 
-func NewParser() *Parser {
+func NewParser(protocol *mysqlProtocol.Instance) *Parser {
 
-	aide := mysqlAide.NewInstance()
-
-	return &Parser{aide: aide}
+	return &Parser{protocol: protocol}
 }
 
-func (per *Parser) Resolve(src *Source) *Resolved {
-
-	//read packet
-	var payload bytes.Buffer
-	var seq uint8
-	var err error
-	if seq, err = per.resolvePacketTo(bytes.NewReader(src.payload), &payload); err != nil {
+func (me *Parser) Resolve(packet gopacket.Packet) *Resolved {
+	appLayer := packet.ApplicationLayer()
+	if appLayer == nil {
 		return nil
 	}
 
-	src.payload = payload.Bytes()
+	//read packet
+	var payloadWB bytes.Buffer
+	var seq uint8
+	var err error
+	if seq, err = me.resolvePacketTo(bytes.NewReader(appLayer.Payload()), &payloadWB); err != nil {
+		return nil
+	}
 
-	log.Println("start resolve")
+	payload := payloadWB.Bytes()
 
 	ret := Resolved{}
 
-	if src.transport.Src().String() == strconv.Itoa(per.aide.Port) {
+	// Network Layer
+	network := packet.NetworkLayer().NetworkFlow()
+
+	// Transport Layer
+	tcpLayer := packet.Layer(layers.LayerTypeTCP)
+	if tcpLayer == nil {
+		return nil
+	}
+	tcp, _ := tcpLayer.(*layers.TCP)
+
+	if int(tcp.SrcPort) == me.protocol.Port {
 		ret.isClientFlow = false
 	} else {
 		ret.isClientFlow = true
 	}
-	code, content := per.aide.Resolve(int(seq), src.payload)
+
+	code, content := me.protocol.Resolve(int(seq), payload)
 	if code != "" {
+		ret.srcHost = network.Src().String()
+		ret.srcPort = int(tcp.SrcPort)
+		ret.dstHost = network.Dst().String()
+		ret.dstPort = int(tcp.DstPort)
 		ret.code = code
 		ret.content = content
+		ret.seq = tcp.Seq
 	}
 
 	return &ret
 }
 
-func (per *Parser) resolvePacketTo(r io.Reader, w io.Writer) (uint8, error) {
+func (me *Parser) resolvePacketTo(r io.Reader, w io.Writer) (uint8, error) {
 
 	header := make([]byte, 4)
 	if n, err := io.ReadFull(r, header); err != nil {
