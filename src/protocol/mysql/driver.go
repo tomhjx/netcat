@@ -1,34 +1,57 @@
 package mysql
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/tomhjx/netcat/protocol"
 )
 
-type Instance struct {
-	Port          int
-	TransportType string
-	stmtMap       map[uint32]*Stmt
-	stmtTMap      map[int]*Stmt
+type Driver struct {
+	protocol.BaseDriver
+	stmtMap  map[uint32]*Stmt
+	stmtTMap map[uint8]*Stmt
 }
 
-func NewInstance() *Instance {
-	return &Instance{
-		Port:          3306,
-		TransportType: "tcp",
-		stmtMap:       make(map[uint32]*Stmt),
-		stmtTMap:      make(map[int]*Stmt),
+func NewDriver() protocol.Driver {
+
+	return &Driver{
+		BaseDriver: protocol.BaseDriver{
+			SpecPort:          3306,
+			SpecTransportType: "tcp",
+		},
+		stmtMap:  make(map[uint32]*Stmt),
+		stmtTMap: make(map[uint8]*Stmt),
 	}
 }
 
-func (me *Instance) Resolve(seq int, payload []byte) (string, string) {
+func (me *Driver) ResolveClient(payload0 []byte) (string, string) {
+	return me.resolve(payload0)
+}
 
-	if len(payload) == 0 {
-		return "NONE", ""
+func (me *Driver) ResolveServer(payload0 []byte) (string, string) {
+	return me.resolve(payload0)
+}
+
+func (me *Driver) resolve(payload0 []byte) (string, string) {
+
+	//read packet
+	var (
+		payloadWB bytes.Buffer
+		seq       uint8
+		err       error
+	)
+	if seq, err = me.resolvePacketTo(bytes.NewReader(payload0), &payloadWB); err != nil {
+		return "", ""
 	}
+
+	payload := payloadWB.Bytes()
 
 	if me.continuePrepareStmt(seq, payload) {
 		return "", ""
@@ -97,7 +120,7 @@ func (me *Instance) Resolve(seq int, payload []byte) (string, string) {
 	// fmt.Println(GetNowStr(true) + msg + "\n")
 }
 
-func (me *Instance) continuePrepareStmt(seq int, payload []byte) bool {
+func (me *Driver) continuePrepareStmt(seq uint8, payload []byte) bool {
 	stmt, ok := me.stmtTMap[seq]
 	if !ok {
 		return false
@@ -113,7 +136,7 @@ func (me *Instance) continuePrepareStmt(seq int, payload []byte) bool {
 	return true
 }
 
-func (me *Instance) resolveExecuteStmt(payload []byte) (string, string) {
+func (me *Driver) resolveExecuteStmt(payload []byte) (string, string) {
 
 	var pos = 1
 	stmtID := binary.LittleEndian.Uint32(payload[pos : pos+4])
@@ -157,4 +180,30 @@ func (me *Instance) resolveExecuteStmt(payload []byte) (string, string) {
 		}
 	}
 	return "MYSQL_REQ_PREPARE_EXEC", string(stmt.WriteToText())
+}
+
+func (me *Driver) resolvePacketTo(r io.Reader, w io.Writer) (uint8, error) {
+
+	header := make([]byte, 4)
+	if n, err := io.ReadFull(r, header); err != nil {
+		if n == 0 && err == io.EOF {
+			return 0, io.EOF
+		}
+		return 0, errors.New("ERR : Unknown stream")
+	}
+
+	length := int(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
+
+	var seq uint8
+	seq = header[3]
+
+	if n, err := io.CopyN(w, r, int64(length)); err != nil {
+		return 0, errors.New("ERR : Unknown stream")
+	} else if n != int64(length) {
+		return 0, errors.New("ERR : Unknown stream")
+	} else {
+		return seq, nil
+	}
+
+	return seq, nil
 }

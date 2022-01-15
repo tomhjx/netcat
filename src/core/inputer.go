@@ -7,11 +7,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
+	"github.com/tomhjx/netcat/protocol"
 )
 
 type Inputer struct {
-	protocol *mysqlProtocol.Instance
+	protocol protocol.Driver
 }
 
 var (
@@ -19,7 +19,7 @@ var (
 	readDoneTriggers = []func(){}
 )
 
-func NewInputer(protocol *mysqlProtocol.Instance) *Inputer {
+func NewInputer(protocol protocol.Driver) *Inputer {
 	return &Inputer{protocol: protocol}
 }
 func (me *Inputer) RegisterReadTrigger(trigger func(gopacket.Packet)) {
@@ -59,7 +59,7 @@ func (me *Inputer) ReadOffline(pcapfile string) {
 		log.Fatal(err)
 	}
 	defer handle.Close()
-	handle.SetBPFFilter(me.protocol.TransportType + " and port " + strconv.Itoa(me.protocol.Port))
+	handle.SetBPFFilter(me.protocol.TransportType() + " and port " + strconv.Itoa(me.protocol.Port()))
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	for packet := range packetSource.Packets() {

@@ -1,20 +1,19 @@
 package core
 
 import (
-	"bytes"
 	"errors"
 	"io"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
+	"github.com/tomhjx/netcat/protocol"
 )
 
 type Parser struct {
-	protocol *mysqlProtocol.Instance
+	protocol protocol.Driver
 }
 
-func NewParser(protocol *mysqlProtocol.Instance) *Parser {
+func NewParser(protocol protocol.Driver) *Parser {
 
 	return &Parser{protocol: protocol}
 }
@@ -24,19 +23,7 @@ func (me *Parser) Resolve(packet gopacket.Packet) *Resolved {
 	if appLayer == nil {
 		return nil
 	}
-
-	//read packet
-	var payloadWB bytes.Buffer
-	var seq uint8
-	var err error
-	if seq, err = me.resolvePacketTo(bytes.NewReader(appLayer.Payload()), &payloadWB); err != nil {
-		return nil
-	}
-
-	payload := payloadWB.Bytes()
-
 	ret := Resolved{}
-
 	// Network Layer
 	network := packet.NetworkLayer().NetworkFlow()
 
@@ -47,22 +34,34 @@ func (me *Parser) Resolve(packet gopacket.Packet) *Resolved {
 	}
 	tcp, _ := tcpLayer.(*layers.TCP)
 
-	if int(tcp.SrcPort) == me.protocol.Port {
+	if len(appLayer.Payload()) == 0 {
+		return nil
+	}
+
+	var (
+		code    string
+		content string
+	)
+
+	if int(tcp.SrcPort) == me.protocol.Port() {
+		code, content = me.protocol.ResolveServer(appLayer.Payload())
 		ret.isClientFlow = false
 	} else {
+		code, content = me.protocol.ResolveClient(appLayer.Payload())
 		ret.isClientFlow = true
 	}
 
-	code, content := me.protocol.Resolve(int(seq), payload)
-	if code != "" {
-		ret.srcHost = network.Src().String()
-		ret.srcPort = int(tcp.SrcPort)
-		ret.dstHost = network.Dst().String()
-		ret.dstPort = int(tcp.DstPort)
-		ret.code = code
-		ret.content = content
-		ret.seq = tcp.Seq
+	if code == "" {
+		return nil
 	}
+
+	ret.srcHost = network.Src().String()
+	ret.srcPort = int(tcp.SrcPort)
+	ret.dstHost = network.Dst().String()
+	ret.dstPort = int(tcp.DstPort)
+	ret.code = code
+	ret.content = content
+	ret.seq = tcp.Seq
 
 	return &ret
 }

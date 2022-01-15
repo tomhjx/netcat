@@ -25,6 +25,9 @@ docker run -it --rm -v /Users/tom/Repos/github.com/tomhjx/netcat/docker/build/my
 ```
 docker run -it --rm --cap-add=ALL -v /Users/tom/Work/project/github.com/tomhjx/netcat/resources:/data/resources  --net container:lab_app_console tomhjx/netcat:0.1.0-alpine-3.14.2 /bin/sh -c "tcpdump -i eth0 -s 0 -w /data/resources/mysql.pcap"
 
+docker run -it --rm --cap-add=ALL -v /Users/tom/Work/project/github.com/tomhjx/netcat/resources:/data/resources  --net container:lab_app_console tomhjx/netcat:0.1.0-alpine-3.14.2 /bin/sh -c "tcpdump -i eth0 -s 0 -w /data/resources/rabbit.pcap"
+
+
 ```
 
 

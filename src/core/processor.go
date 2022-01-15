@@ -5,9 +5,10 @@ import (
 	"sync"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
+	"github.com/tomhjx/netcat/protocol"
+	amqpProtocol "github.com/tomhjx/netcat/protocol/amqp"
 	mysqlProtocol "github.com/tomhjx/netcat/protocol/mysql"
+	redisProtocol "github.com/tomhjx/netcat/protocol/redis"
 )
 
 type Processor struct{}
@@ -16,84 +17,34 @@ func NewProcessor() *Processor {
 	return &Processor{}
 }
 
-func handleMysql() {
-	var (
-		pcapfile string = "/work/resources/mysql.pcap"
-		handle   *pcap.Handle
-		err      error
-		// Will reuse these for each packet
-		// ethLayer layers.Ethernet
-		// ipLayer  layers.IPv4
-		// tcpLayer layers.TCP
-		// llcLayer layers.LLC
-	)
+func tryMysql() (string, protocol.Driver) {
+	return "/work/resources/mysql.pcap", mysqlProtocol.NewDriver()
+}
 
-	handle, err = pcap.OpenOffline(pcapfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	//capture
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+func tryRabbit() (string, protocol.Driver) {
+	return "/work/resources/rabbit.pcap", amqpProtocol.NewDriver()
+}
 
-	// set up assembly
-	// streamFactory := &ProtocolStreamFactory{}
-	// streamPool := tcpassembly.NewStreamPool(streamFactory)
-	// assembler := tcpassembly.NewAssembler(streamPool)
-
-	// loop until ctrl+z
-
-	for {
-
-		packet, err := packetSource.NextPacket()
-		if err != nil {
-			log.Println("Read Packet ERR:", err)
-			return
-		}
-		if packet == nil {
-			return
-		}
-		if packet.NetworkLayer() == nil ||
-			packet.TransportLayer() == nil ||
-			packet.TransportLayer().LayerType() != layers.LayerTypeTCP {
-			log.Println("ERR : Unknown Packet -_-")
-			continue
-		}
-
-		applicationLayer := packet.ApplicationLayer()
-		if applicationLayer == nil {
-			continue
-		}
-
-		log.Println("...")
-
-		// tcp := packet.TransportLayer().(*layers.TCP)
-		// assembler.AssembleWithTimestamp(
-		// 	packet.NetworkLayer().NetworkFlow(),
-		// 	tcp, packet.Metadata().Timestamp,
-		// )
-		// m := mysql.NewInstance()
-		// if m == nil {
-		// 	log.Fatal("mysql instance error.")
-		// }
-		// netflow := packet.NetworkLayer().NetworkFlow()
-
-		// m.ResolveLocal(netflow, bytes.NewReader(applicationLayer.Payload()))
-	}
+func tryRedis() (string, protocol.Driver) {
+	return "/work/resources/redis.pcap", redisProtocol.NewDriver()
 }
 
 func (proc *Processor) Run() {
-	pcapfile := "/work/resources/mysql.pcap"
+	// pcapfile := "/work/resources/mysql.pcap"
+	// pcapfile := "/work/resources/rabbit.pcap"
 	// pcapfile := "/work/resources/mysql2.pcap"
+
+	// pcapfile, pd := tryMysql()
+	// pcapfile, pd := tryRabbit()
+	pcapfile, pd := tryRedis()
 	concurrency := 3
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
 
 	sources := make(chan gopacket.Packet, 100)
 	resolveds := make(chan *Resolved, 10)
-	protocol := mysqlProtocol.NewInstance()
-	parser := NewParser(protocol)
-	ier := NewInputer(protocol)
+	parser := NewParser(pd)
+	ier := NewInputer(pd)
 
 	// input
 	go func() {
@@ -116,9 +67,12 @@ func (proc *Processor) Run() {
 		for {
 			select {
 			case source := <-sources:
-				// time.Sleep(1 * time.Second)
-				// log.Println("parse: ", len(source.payload))
-				resolveds <- parser.Resolve(source)
+
+				resolved := parser.Resolve(source)
+				if resolved != nil {
+					resolveds <- parser.Resolve(source)
+				}
+
 			}
 		}
 	}()
