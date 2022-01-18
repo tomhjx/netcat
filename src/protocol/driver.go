@@ -1,8 +1,8 @@
 package protocol
 
 type Driver interface {
-	ResolveClient(payload []byte) (string, string)
-	ResolveServer(payload []byte) (string, string)
+	ResolveClient(payload []byte) Content
+	ResolveServer(payload []byte) Content
 	Port() int
 	TransportType() string
 }
@@ -17,4 +17,8 @@ func (me *BaseDriver) Port() int {
 }
 func (me *BaseDriver) TransportType() string {
 	return me.SpecTransportType
+}
+
+type Content interface {
+	Section() string
 }

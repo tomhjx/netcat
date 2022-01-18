@@ -31,15 +31,15 @@ func NewDriver() protocol.Driver {
 	}
 }
 
-func (me *Driver) ResolveClient(payload0 []byte) (string, string) {
+func (me *Driver) ResolveClient(payload0 []byte) protocol.Content {
 	return me.resolve(payload0)
 }
 
-func (me *Driver) ResolveServer(payload0 []byte) (string, string) {
+func (me *Driver) ResolveServer(payload0 []byte) protocol.Content {
 	return me.resolve(payload0)
 }
 
-func (me *Driver) resolve(payload0 []byte) (string, string) {
+func (me *Driver) resolve(payload0 []byte) protocol.Content {
 
 	//read packet
 	var (
@@ -48,13 +48,13 @@ func (me *Driver) resolve(payload0 []byte) (string, string) {
 		err       error
 	)
 	if seq, err = me.resolvePacketTo(bytes.NewReader(payload0), &payloadWB); err != nil {
-		return "", ""
+		return nil
 	}
 
 	payload := payloadWB.Bytes()
 
 	if me.continuePrepareStmt(seq, payload) {
-		return "", ""
+		return nil
 	}
 
 	switch payload[0] {
@@ -63,23 +63,35 @@ func (me *Driver) resolve(payload0 []byte) (string, string) {
 		errorCode := int(binary.LittleEndian.Uint16(payload[1:3]))
 		errorMsg, _ := ReadStringFromByte(payload[4:])
 
-		return "MYSQL_RESP_ERR", fmt.Sprintf("Err code:%s,Err msg:%s", strconv.Itoa(errorCode), strings.TrimSpace(errorMsg))
+		content := make(map[string]interface{})
+		content["code"] = strconv.Itoa(errorCode)
+		content["msg"] = strings.TrimSpace(errorMsg)
+
+		// return "MYSQL_RESP_ERR", content
+		return nil
 
 	case 0x00:
 		var pos = 1
 		l, _, _ := LengthEncodedInt(payload[pos:])
-		affectedRows := int(l)
-		return "MYSQL_RESP_EFFECT", fmt.Sprintf("Effect Row:%s", strconv.Itoa(affectedRows))
+		content := make(map[string]interface{})
+		content["rows"] = strconv.Itoa(int(l))
+		// return "MYSQL_RESP_EFFECT", content
+		return nil
 
 	case COM_INIT_DB:
+		content := make(map[string]interface{})
+		content["stmt"] = fmt.Sprintf("USE %s;", payload[1:])
 
-		return "MYSQL_REQ_USE_DB", fmt.Sprintf("USE %s;", payload[1:])
+		// return "MYSQL_REQ_USE_DB", content
+		return nil
 	case COM_DROP_DB:
 
-		return "MYSQL_REQ_DROP_DB", fmt.Sprintf("Drop DB %s;", payload[1:])
+		// return "MYSQL_REQ_DROP_DB", fmt.Sprintf("Drop DB %s;", payload[1:])
+		return nil
 	case COM_CREATE_DB, COM_QUERY:
 
-		return "MYSQL_REQ_QUERY", string(payload[1:])
+		// return "MYSQL_REQ_QUERY", string(payload[1:])
+		return nil
 
 	case COM_STMT_PREPARE:
 
@@ -104,19 +116,19 @@ func (me *Driver) resolve(payload0 []byte) (string, string) {
 				stmt.Args[paramId] = b
 			}
 		}
-		return "", ""
+		return nil
 	case COM_STMT_RESET:
 
 		stmtID := binary.LittleEndian.Uint32(payload[1:5])
 		stmt, _ := me.stmtMap[stmtID]
 		stmt.Args = make([]interface{}, stmt.ParamCount)
-		return "", ""
+		return nil
 	case COM_STMT_EXECUTE:
 		return me.resolveExecuteStmt(payload)
 	default:
-		return "", ""
+		return nil
 	}
-	return "", ""
+	return nil
 	// fmt.Println(GetNowStr(true) + msg + "\n")
 }
 
@@ -136,7 +148,7 @@ func (me *Driver) continuePrepareStmt(seq uint8, payload []byte) bool {
 	return true
 }
 
-func (me *Driver) resolveExecuteStmt(payload []byte) (string, string) {
+func (me *Driver) resolveExecuteStmt(payload []byte) protocol.Content {
 
 	var pos = 1
 	stmtID := binary.LittleEndian.Uint32(payload[pos : pos+4])
@@ -145,7 +157,7 @@ func (me *Driver) resolveExecuteStmt(payload []byte) (string, string) {
 	var ok bool
 	if stmt, ok = me.stmtMap[stmtID]; !ok {
 		log.Println("ERR : Not found stm id", stmtID)
-		return "", ""
+		return nil
 	}
 
 	//params
@@ -179,7 +191,8 @@ func (me *Driver) resolveExecuteStmt(payload []byte) (string, string) {
 			log.Println("ERR : Could not bind params", err)
 		}
 	}
-	return "MYSQL_REQ_PREPARE_EXEC", string(stmt.WriteToText())
+	// return "MYSQL_REQ_PREPARE_EXEC", string(stmt.WriteToText())
+	return nil
 }
 
 func (me *Driver) resolvePacketTo(r io.Reader, w io.Writer) (uint8, error) {

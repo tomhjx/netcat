@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"time"
 )
 
@@ -58,7 +57,7 @@ func (r *reader) ReadFrame() (frame frame, err error) {
 	typ := uint8(scratch[0])
 	channel := binary.BigEndian.Uint16(scratch[1:3])
 	size := binary.BigEndian.Uint32(scratch[3:7])
-	log.Println(typ, channel, size)
+	// log.Println(typ, channel, size)
 
 	switch typ {
 	case frameMethod:

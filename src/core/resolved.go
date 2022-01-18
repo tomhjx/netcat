@@ -1,12 +1,13 @@
 package core
 
+import "github.com/tomhjx/netcat/protocol"
+
 type Resolved struct {
-	isClientFlow bool
-	srcHost      string
-	srcPort      int
-	dstHost      string
-	dstPort      int
-	code         string
-	content      string
-	seq          uint32
+	IsClientFlow bool
+	SrcHost      string
+	SrcPort      int
+	DstHost      string
+	DstPort      int
+	Content      protocol.Content
+	Seq          uint32
 }

@@ -30,13 +30,10 @@ func tryRedis() (string, protocol.Driver) {
 }
 
 func (proc *Processor) Run() {
-	// pcapfile := "/work/resources/mysql.pcap"
-	// pcapfile := "/work/resources/rabbit.pcap"
-	// pcapfile := "/work/resources/mysql2.pcap"
 
 	// pcapfile, pd := tryMysql()
-	// pcapfile, pd := tryRabbit()
-	pcapfile, pd := tryRedis()
+	pcapfile, pd := tryRabbit()
+	// pcapfile, pd := tryRedis()
 	concurrency := 3
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)

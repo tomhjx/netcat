@@ -24,7 +24,7 @@ func NewDriver() protocol.Driver {
 	}
 }
 
-func (me *Driver) ResolveClient(payload0 []byte) (string, string) {
+func (me *Driver) ResolveClient(payload0 []byte) protocol.Content {
 	var (
 		cmd      string
 		cmdCount int
@@ -59,9 +59,12 @@ func (me *Driver) ResolveClient(payload0 []byte) (string, string) {
 		}
 		cmd += "\r\n"
 	}
-	return "REDIS_REQ_CMD", cmd
+	// return "REDIS_REQ_CMD", cmd
+	return nil
 }
 
-func (me *Driver) ResolveServer(payload0 []byte) (string, string) {
-	return "REDIS_RESP_RES", string(payload0)
+func (me *Driver) ResolveServer(payload0 []byte) protocol.Content {
+	// return "REDIS_RESP_RES", string(payload0)
+	return nil
+
 }

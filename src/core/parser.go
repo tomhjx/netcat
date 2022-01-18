@@ -1,11 +1,11 @@
 package core
 
 import (
-	"errors"
-	"io"
+	"encoding/json"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	log "github.com/sirupsen/logrus"
 	"github.com/tomhjx/netcat/protocol"
 )
 
@@ -23,7 +23,6 @@ func (me *Parser) Resolve(packet gopacket.Packet) *Resolved {
 	if appLayer == nil {
 		return nil
 	}
-	ret := Resolved{}
 	// Network Layer
 	network := packet.NetworkLayer().NetworkFlow()
 
@@ -39,55 +38,36 @@ func (me *Parser) Resolve(packet gopacket.Packet) *Resolved {
 	}
 
 	var (
-		code    string
-		content string
+		content      protocol.Content
+		isClientFlow bool
 	)
 
 	if int(tcp.SrcPort) == me.protocol.Port() {
-		code, content = me.protocol.ResolveServer(appLayer.Payload())
-		ret.isClientFlow = false
+		log.Info("come from server.")
+		content = me.protocol.ResolveServer(appLayer.Payload())
+		isClientFlow = false
 	} else {
-		code, content = me.protocol.ResolveClient(appLayer.Payload())
-		ret.isClientFlow = true
+		log.Info("come from client.")
+		content = me.protocol.ResolveClient(appLayer.Payload())
+		isClientFlow = true
 	}
 
-	if code == "" {
+	if content == nil {
 		return nil
 	}
 
-	ret.srcHost = network.Src().String()
-	ret.srcPort = int(tcp.SrcPort)
-	ret.dstHost = network.Dst().String()
-	ret.dstPort = int(tcp.DstPort)
-	ret.code = code
-	ret.content = content
-	ret.seq = tcp.Seq
-
-	return &ret
-}
-
-func (me *Parser) resolvePacketTo(r io.Reader, w io.Writer) (uint8, error) {
-
-	header := make([]byte, 4)
-	if n, err := io.ReadFull(r, header); err != nil {
-		if n == 0 && err == io.EOF {
-			return 0, io.EOF
-		}
-		return 0, errors.New("ERR : Unknown stream")
+	ret := &Resolved{
+		IsClientFlow: isClientFlow,
+		SrcHost:      network.Src().String(),
+		SrcPort:      int(tcp.SrcPort),
+		DstHost:      network.Dst().String(),
+		DstPort:      int(tcp.DstPort),
+		Content:      content,
+		Seq:          tcp.Seq,
 	}
 
-	length := int(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
+	cjson, _ := json.Marshal(ret)
+	log.Debug(content.Section() + ":" + string(cjson))
 
-	var seq uint8
-	seq = header[3]
-
-	if n, err := io.CopyN(w, r, int64(length)); err != nil {
-		return 0, errors.New("ERR : Unknown stream")
-	} else if n != int64(length) {
-		return 0, errors.New("ERR : Unknown stream")
-	} else {
-		return seq, nil
-	}
-
-	return seq, nil
+	return ret
 }
