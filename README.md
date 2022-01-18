@@ -6,7 +6,7 @@
 
 * [*] MySQL
 * [*] Redis
-* [*] AMQP (Rabbit MQ)
+* [*] AMQP (eg. Rabbit MQ)
 * [ ] Mongodb
 * [ ] Kafka
 
