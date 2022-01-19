@@ -4,9 +4,9 @@
 
 # 支持
 
-* [*] MySQL
-* [*] Redis
-* [*] AMQP (eg. Rabbit MQ)
+* [x] MySQL
+* [x] Redis
+* [x] AMQP (eg. Rabbit MQ)
 * [ ] Mongodb
 * [ ] Kafka
 
