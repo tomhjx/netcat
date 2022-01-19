@@ -1,6 +1,9 @@
 # netcat
 集成网络抓包工具及提供便捷的使用方式，便于快速实现网络问题的监控、分析
 
+[![GitHub license](https://img.shields.io/github/license/tomhjx/netcat.svg?style=popout-square)](https://github.com/tomhjx/netcat/blob/main/LICENSE)
+
+
 
 # 支持
 
