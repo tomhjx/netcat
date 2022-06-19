@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-if [ "$1" == '/bin/sh' ]; then
+if [ "$1" == 'bash' ]; then
     exec "$@"
     return 1
 fi

@@ -46,7 +46,7 @@ docker run -it --rm --cap-add=ALL -v /Users/tom/Work/project/github.com/tomhjx/n
 * 截取某个容器发起的请求
 
 ```
-docker run -it --rm --net container:目标容器名称 tomhjx/netcat what-mysql
+docker run -it --rm --net container:目标容器名称 tomhjx/netcat mysql
 
 ```
 

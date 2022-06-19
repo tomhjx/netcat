@@ -12,7 +12,7 @@ tag=$(git describe --tags `git rev-list --tags="*" --max-count=1`)
 
 array=(${tag//-/ })
 ver1=${array[0]}
-ver1=(${ver1//./ }) 
+ver1=(${ver1//./ })
 
 let ver1[$ver1i]+=1
 
