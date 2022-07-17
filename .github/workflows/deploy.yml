@@ -23,9 +23,6 @@ jobs:
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
-        with:
-          driver-opts: |
-            platform=linux/amd64,linux/arm64,linux/arm/v8
       - name: Inspect builder
         run: |
           echo "Name:      ${{ steps.buildx.outputs.name }}"
@@ -38,7 +35,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Push
+      - name: Publish
         run: |
           DOCKER_RELEASE_TAG="tomhjx/netcat:${GITHUB_REF_NAME}"
           ${{ github.workspace }}/pub-docker-image.sh $DOCKER_RELEASE_TAG
