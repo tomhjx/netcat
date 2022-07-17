@@ -9,6 +9,6 @@ do
         tag1="${f##*/}"
         tag="$tag0-$tag1"
         echo $f:$tag
-        docker buildx build --platform linux/amd64,linux/arm64 $f -t $tag . --push
+        docker buildx build --platform linux/amd64,linux/arm64 $f -t $tag --push
     fi
 done
